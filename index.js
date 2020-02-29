@@ -1,31 +1,28 @@
 //Stuff for Socket Connection:
 var io = require('socket.io-client');
-var socket = io('https://CardServer--jaxcksn.repl.co')
+var socket = io('https://cardgame.jaxcksn.dev')
 //CLI Dependencies
 const prompts = require('prompts');
 const spn = require('spinnies');
 const spinnies = new spn();
-const chalk = require('chalk');
 const shortid = require('shortid')
-const logUpdate = require('log-update')
 const readline = require('readline')
 const pak = require('press-any-key');
 const ansi = require('sisteransi');
+const {green, red, bold } = require('kleur');
 
 const p = str => process.stdout.write(str);
 
 //Other Utility Vars and Functions
-var id;
-var nickname;
-var currentRoom;
-var hasJoinedRoom = false;
+var id = 0;
+var currentRoom = 'notSet';
+var isHost = false;
 var gameSelected = 'none';
-var finishLoop = false;
 
 
 //Host Variables
-var playersConnected = 9;
-var playersAdded = [];
+var playersConnected = 1;
+var players = new Map();
 
 // Console Stuff
 function clearConsole() {
@@ -39,11 +36,31 @@ socket.on('connect', () => {
   createPlayer();
 })
 
+
+socket.on('playerLeave', (id) => {
+  if(isHost) {
+    playersConnected -= 1;
+    players.delete(id);
+
+    p(ansi.cursor.save);
+    p(ansi.cursor.hide);
+    p(ansi.cursor.to(10, 3));
+    p(ansi.erase.lineEnd)
+    p(`${playersConnected} players connected.`)
+
+    p(ansi.cursor.restore);
+  }
+})
+
 /**
  * TODO LIST:
  * 1. Figure out server disconnect stuff.
  *  - I need to remove rooms when host disconnects
  *  - remove clients when they disconnect
+ * 
+ * 2. Program the Card Games and Logic
+ *  - War
+ *  - Blackjack
  */
 
 
@@ -89,6 +106,7 @@ async function createPlayer() {
     console.log('You have successfully joined the game server.')
     //For the host.
     if (playerChoices.playerType == 'host') {
+      isHost = true;
       spinnies.add('waitForRoom', { text: 'Creating Room. Please wait.' })
       setTimeout(() => {
         spinnies.succeed('waitForRoom', { text: `Done! Your room ID is: ${roomCallback}` });
@@ -96,6 +114,7 @@ async function createPlayer() {
       }, 2000)
       //Start host function
     } else {
+      isHost = false;
       //Start player function
       playerMenu();
     }
@@ -104,7 +123,13 @@ async function createPlayer() {
 
 function hostMenu(roomCode) {
   // This is the game selection loop
-  hostLoop(roomCode)
+  hostLoop(roomCode).then(()=> {
+    if(gameSelected=='blackjack') {
+      console.log('Starting Blackjack')
+      console.log('')
+    }
+  })
+
 }
 
 function playerMenu() {
@@ -142,18 +167,19 @@ function playerGame() {
 
 //Choose Game Prompt Function
 async function whatGamePrompt() {
+  console.log('\n')
   const response = await prompts([
     {
       type: 'select',
       name: 'gameMode',
       message: 'What game would you like to play?',
-      warn: chalk.red('Not enough players!'),
+      warn: red('Invalid amount of Players'),
       hint: 'Choose One',
       choices: [
-        { title: 'War', value: 'war', disabled: canPlayWar()},
-        { title: 'Blackjack', value: 'blackjack', disabled: canPlayBlackjack()},
+        { title: 'War', value: 'war', disabled: canPlayWar() },
+        { title: 'Blackjack', value: 'blackjack', disabled: canPlayBlackjack() },
         {
-          title: 'Cancel', value: 'none', description: chalk.green('Keep waiting for more players.')
+          title: 'Cancel', value: 'none'
         }
       ]
     }
@@ -164,35 +190,38 @@ async function whatGamePrompt() {
 const hostLoop = async (roomCode) => {
   do {
     clearConsole();
-    console.log(chalk.bold('Card Game Main Menu'))
-    console.log(`Your room code is ${roomCode}`);
+    console.log(bold('Card Game Main Menu'))
+    console.log(`Your room code is ${bold().green(roomCode)}`);
     console.log(`There are ${playersConnected} players connected.`)
-    
+
 
 
     //Wait for a keypress. Lets the host wait for people.
-    await pak('\nPress any key to continue...').then(() => {
-      console.log('\n')
-    })
+    await pak('\nPress any key to continue...')
     await whatGamePrompt()
-
-    
-
   } while (gameSelected == 'none')
-
   
+  players.forEach((v,k)=> {
+    //args: playerID, playerMSG
+    socket.emit('sendGameMsg', k, `Host has selected ${gameSelected}`)
+  })
 }
 
-socket.on('joinedRoom', () => {
-    playersConnected += 1;
-    p(ansi.cursor.save);
-    p(ansi.cursor.hide);
-    p(ansi.cursor.to(10,3));
-    p(ansi.erase.lineEnd)
-    p(`${playersConnected} players connected.`)
+socket.on('joinedRoom', (playerJSON) => {
+  playersConnected += 1;
 
-    p(ansi.cursor.restore);
-  })
+  if (isHost) {
+  players.set(playerJSON.playerID,playerJSON.playerNickname);
+
+  p(ansi.cursor.save);
+  p(ansi.cursor.hide);
+  p(ansi.cursor.to(10, 3));
+  p(ansi.erase.lineEnd)
+  p(`${playersConnected} players connected.`)
+
+  p(ansi.cursor.restore);
+  }
+})
 
 function canPlayWar() {
   if (playersConnected == 2) {
@@ -209,3 +238,13 @@ function canPlayBlackjack() {
     return true
   }
 }
+
+//
+socket.on('gameMSG',(msg)=>{
+  console.log(msg)
+})
+
+socket.on('roomDeleted', () => {
+  console.log(red('\nHost disconnected. Please refresh this window.'))
+  process.exit()
+})

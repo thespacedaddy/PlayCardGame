@@ -285,6 +285,7 @@ function startWarGame(room) {
 
 socket.on('warGameStart', (room,deck) => {
   var cardDeck = deck;
+  spinnies.succeed('waitForGame')
   playWar(room,deck);
 })
 

@@ -102,6 +102,13 @@ class CardDeck {
       return drawnCards;
     }
   }
+  /**
+   * Simply adds card to end of deck.
+   * @param {Card} [card] The card object to add.
+   */
+  addToDeck(card) {
+    this.deck.push(card);
+  }
 
 }
 

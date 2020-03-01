@@ -206,7 +206,7 @@ const hostLoop = async (roomCode) => {
 
 
     //Wait for a keypress. Lets the host wait for people.
-    await pak('\nPress any key to continue...')
+    
     await whatGamePrompt()
   } while (gameSelected == 'none')
 
@@ -214,8 +214,8 @@ const hostLoop = async (roomCode) => {
   if (gameSelected == 'war') {
     //Lock the room.
     socket.emit('closeRoom', roomCode);
-    //
-    startWarGame()
+    //Start war game stuff.
+    startWarGame(roomCode);
   }
 }
 
@@ -271,17 +271,34 @@ socket.on('roomDeleted', () => {
 // -----------------------------------------------------
 // War Card Game Functions and Loops
 
-function startWarGame() {
+function startWarGame(room) {
   //First we create and shuffle a deck.
-  let cards = new cd();
-
+  let hostDeck = new cd();
+  let playerDeck = new cd(hostDeck.split());
 
   //Now we tell the client
-  socket.emit('warGameStarted');
-
-
+  socket.emit('warGameStarted', room, playerDeck);
+  console.clear();
+  playWar(room,hostDeck);
 
 }
 
+socket.on('warGameStart', (deck) => {
+  var cardDeck = deck;
+  playWar(room,deck);
+})
 
+//I need to figure out the socket situation for this.
 
+async function playWar(room,deck) {
+  console.clear()
+  gamePlaying = true;
+  while (gamePlaying) {
+    console.log(`There are ${deck.length} cards in your hand.`);
+    await pak('Press any key to draw a card')
+    let card = deck.draw();
+    console.log('Drew Card:')
+    console.log('[##]')
+  }
+
+}

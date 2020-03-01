@@ -36,6 +36,10 @@ socket.on('connect', () => {
   createPlayer();
 })
 
+socket.on('disconnect', ()=>{
+  console.log(red('\nError connecting with server. Please restart this program.'))
+  process.exit(1)
+})
 
 socket.on('playerLeave', (id) => {
   if(isHost) {

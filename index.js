@@ -283,7 +283,7 @@ function startWarGame(room) {
 
 }
 
-socket.on('warGameStart', (deck) => {
+socket.on('warGameStart', (room,deck) => {
   var cardDeck = deck;
   playWar(room,deck);
 })

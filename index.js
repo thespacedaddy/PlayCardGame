@@ -275,7 +275,7 @@ function startWarGame(room) {
   //First we create and shuffle a deck.
   let hostDeck = new cd();
   let playerDeck = new cd(hostDeck.split());
-
+  console.log(playerDeck);
   //Now we tell the client
   socket.emit('warGameStarted', room, playerDeck);
   console.clear();
@@ -286,7 +286,7 @@ function startWarGame(room) {
 socket.on('warGameStart', (room,deck) => {
   var cardDeck = deck;
   spinnies.succeed('waitForGame')
-  playWar(room,deck);
+  playWar(room,cardDeck);
 })
 
 //I need to figure out the socket situation for this.

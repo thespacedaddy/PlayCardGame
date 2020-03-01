@@ -9,7 +9,7 @@ const shortid = require('shortid')
 const readline = require('readline')
 const pak = require('press-any-key');
 const ansi = require('sisteransi');
-const {green, red, bold } = require('kleur');
+const { green, red, bold } = require('kleur');
 
 const p = str => process.stdout.write(str);
 
@@ -18,7 +18,10 @@ var id = 0;
 var currentRoom = 'notSet';
 var isHost = false;
 var gameSelected = 'none';
+var gameStarted = 'false';
 
+//Card Stuff
+var cd = require('./cardGame')
 
 //Host Variables
 var playersConnected = 1;
@@ -36,13 +39,13 @@ socket.on('connect', () => {
   createPlayer();
 })
 
-socket.on('disconnect', ()=>{
+socket.on('disconnect', () => {
   console.log(red('\nError connecting with server. Please restart this program.'))
   process.exit(1)
 })
 
 socket.on('playerLeave', (id) => {
-  if(isHost) {
+  if (isHost) {
     playersConnected -= 1;
     players.delete(id);
 
@@ -127,8 +130,8 @@ async function createPlayer() {
 
 function hostMenu(roomCode) {
   // This is the game selection loop
-  hostLoop(roomCode).then(()=> {
-    if(gameSelected=='blackjack') {
+  hostLoop(roomCode).then(() => {
+    if (gameSelected == 'blackjack') {
       console.log('Starting Blackjack')
       console.log('')
     }
@@ -166,6 +169,8 @@ async function joinRoom() {
 
 function playerGame() {
   console.log(`Joined room: ${currentRoom}`)
+  console.log('')
+  spinnies.add('waitForGame', { text: 'Waiting for Host to pick a game.' })
   //TODO: Gameplay Functions
 }
 
@@ -204,26 +209,33 @@ const hostLoop = async (roomCode) => {
     await pak('\nPress any key to continue...')
     await whatGamePrompt()
   } while (gameSelected == 'none')
-  
-  players.forEach((v,k)=> {
-    //args: playerID, playerMSG
-    socket.emit('sendGameMsg', k, `Host has selected ${gameSelected}`)
-  })
+
+  //Star war.
+  if (gameSelected == 'war') {
+    //Lock the room.
+    socket.emit('closeRoom', roomCode);
+    //
+    startWarGame()
+  }
 }
 
 socket.on('joinedRoom', (playerJSON) => {
   playersConnected += 1;
 
   if (isHost) {
-  players.set(playerJSON.playerID,playerJSON.playerNickname);
+    if (gameStarted) {
 
-  p(ansi.cursor.save);
-  p(ansi.cursor.hide);
-  p(ansi.cursor.to(10, 3));
-  p(ansi.erase.lineEnd)
-  p(`${playersConnected} players connected.`)
+    } else {
+      players.set(playerJSON.playerID, playerJSON.playerNickname);
 
-  p(ansi.cursor.restore);
+      p(ansi.cursor.save);
+      p(ansi.cursor.hide);
+      p(ansi.cursor.to(10, 3));
+      p(ansi.erase.lineEnd)
+      p(`${playersConnected} players connected.`)
+
+      p(ansi.cursor.restore);
+    }
   }
 })
 
@@ -244,11 +256,32 @@ function canPlayBlackjack() {
 }
 
 //
-socket.on('gameMSG',(msg)=>{
-  console.log(msg)
+socket.on('gameMSG', (msg) => {
+  spinnies.succeed('waitForGame');
+  console.log(msg);
 })
 
 socket.on('roomDeleted', () => {
   console.log(red('\nHost disconnected. Please refresh this window.'))
   process.exit()
 })
+
+
+
+// -----------------------------------------------------
+// War Card Game Functions and Loops
+
+function startWarGame() {
+  //First we create and shuffle a deck.
+  let cards = new cd();
+
+
+  //Now we tell the client
+  socket.emit('warGameStarted');
+
+
+
+}
+
+
+
